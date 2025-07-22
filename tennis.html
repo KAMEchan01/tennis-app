@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classic Tennis Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2d5016;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        .game-container {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            background-color: #4a7c59;
+            border: 4px solid #fff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .center-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background-color: #fff;
+            transform: translateX(-50%);
+        }
+
+        .score {
+            position: absolute;
+            top: 20px;
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .score.left {
+            left: 30px;
+        }
+
+        .score.right {
+            right: 30px;
+        }
+
+        .paddle {
+            position: absolute;
+            width: 15px;
+            height: 80px;
+            background-color: #fff;
+            border-radius: 2px;
+        }
+
+        .paddle.left {
+            left: 20px;
+        }
+
+        .paddle.right {
+            right: 20px;
+        }
+
+        .ball {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 32px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="center-line"></div>
+        <div class="score left" id="leftScore">0</div>
+        <div class="score right" id="rightScore">0</div>
+        <div class="paddle left" id="leftPaddle"></div>
+        <div class="paddle right" id="rightPaddle"></div>
+        <div class="ball" id="ball"></div>
+        <div class="instructions">
+            プレイヤー: W/S キー | スペースでリスタート
+        </div>
+        <div class="game-over" id="gameOver">
+            <div id="winner"></div>
+            <div style="font-size: 16px; margin-top: 10px;">スペースキーでリスタート</div>
+        </div>
+    </div>
+
+    <script>
+        class TennisGame {
+            constructor() {
+                this.canvas = document.querySelector('.game-container');
+                this.leftPaddle = document.getElementById('leftPaddle');
+                this.rightPaddle = document.getElementById('rightPaddle');
+                this.ball = document.getElementById('ball');
+                this.leftScoreEl = document.getElementById('leftScore');
+                this.rightScoreEl = document.getElementById('rightScore');
+                this.gameOverEl = document.getElementById('gameOver');
+                this.winnerEl = document.getElementById('winner');
+
+                this.gameWidth = 800;
+                this.gameHeight = 400;
+                this.paddleHeight = 80;
+                this.paddleWidth = 15;
+                this.ballSize = 15;
+
+                this.leftScore = 0;
+                this.rightScore = 0;
+                this.gameRunning = true;
+
+                this.leftPaddleY = (this.gameHeight - this.paddleHeight) / 2;
+                this.rightPaddleY = (this.gameHeight - this.paddleHeight) / 2;
+
+                this.ballX = this.gameWidth / 2;
+                this.ballY = this.gameHeight / 2;
+                this.ballVelX = 10 * (Math.random() > 0.5 ? 1 : -1);
+                this.ballVelY = 6 * (Math.random() > 0.5 ? 1 : -1);
+
+                this.keys = {};
+                this.paddleSpeed = 6;
+
+                this.init();
+            }
+
+            init() {
+                this.updatePositions();
+                this.bindEvents();
+                this.gameLoop();
+            }
+
+            bindEvents() {
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.key.toLowerCase()] = true;
+                    if (e.key === ' ') {
+                        e.preventDefault();
+                        if (!this.gameRunning) {
+                            this.reset();
+                        }
+                    }
+                });
+
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.key.toLowerCase()] = false;
+                });
+            }
+
+            updatePaddles() {
+                if (this.keys['w'] && this.leftPaddleY > 0) {
+                    this.leftPaddleY -= this.paddleSpeed;
+                }
+                if (this.keys['s'] && this.leftPaddleY < this.gameHeight - this.paddleHeight) {
+                    this.leftPaddleY += this.paddleSpeed;
+                }
+
+                this.updateAI();
+            }
+
+            updateAI() {
+                const ballCenterY = this.ballY + this.ballSize / 2;
+                const paddleCenterY = this.rightPaddleY + this.paddleHeight / 2;
+                const difficulty = 2.5;
+                const reactionDelay = 20;
+                
+                if (Math.random() < 0.15) return;
+                
+                if (ballCenterY < paddleCenterY - reactionDelay) {
+                    this.rightPaddleY = Math.max(0, this.rightPaddleY - difficulty);
+                } else if (ballCenterY > paddleCenterY + reactionDelay) {
+                    this.rightPaddleY = Math.min(this.gameHeight - this.paddleHeight, this.rightPaddleY + difficulty);
+                }
+            }
+
+            updateBall() {
+                this.ballX += this.ballVelX;
+                this.ballY += this.ballVelY;
+
+                if (this.ballY <= 0 || this.ballY >= this.gameHeight - this.ballSize) {
+                    this.ballVelY = -this.ballVelY;
+                }
+
+                if (this.ballX <= 35 && 
+                    this.ballY + this.ballSize >= this.leftPaddleY && 
+                    this.ballY <= this.leftPaddleY + this.paddleHeight) {
+                    this.ballVelX = -this.ballVelX;
+                    let relativeIntersectY = (this.leftPaddleY + this.paddleHeight/2) - (this.ballY + this.ballSize/2);
+                    this.ballVelY = -relativeIntersectY * 0.1;
+                }
+
+                if (this.ballX >= this.gameWidth - 35 - this.ballSize && 
+                    this.ballY + this.ballSize >= this.rightPaddleY && 
+                    this.ballY <= this.rightPaddleY + this.paddleHeight) {
+                    this.ballVelX = -this.ballVelX;
+                    let relativeIntersectY = (this.rightPaddleY + this.paddleHeight/2) - (this.ballY + this.ballSize/2);
+                    this.ballVelY = -relativeIntersectY * 0.1;
+                }
+
+                if (this.ballX < 0) {
+                    this.rightScore++;
+                    this.resetBall();
+                    this.checkWinner();
+                }
+
+                if (this.ballX > this.gameWidth) {
+                    this.leftScore++;
+                    this.resetBall();
+                    this.checkWinner();
+                }
+            }
+
+            resetBall() {
+                this.ballX = this.gameWidth / 2;
+                this.ballY = this.gameHeight / 2;
+                this.ballVelX = 10 * (Math.random() > 0.5 ? 1 : -1);
+                this.ballVelY = 6 * (Math.random() > 0.5 ? 1 : -1);
+            }
+
+            checkWinner() {
+                if (this.leftScore >= 5) {
+                    this.gameRunning = false;
+                    this.winnerEl.textContent = 'プレイヤーの勝利!';
+                    this.gameOverEl.style.display = 'block';
+                } else if (this.rightScore >= 5) {
+                    this.gameRunning = false;
+                    this.winnerEl.textContent = 'AIの勝利!';
+                    this.gameOverEl.style.display = 'block';
+                }
+            }
+
+            updatePositions() {
+                this.leftPaddle.style.top = this.leftPaddleY + 'px';
+                this.rightPaddle.style.top = this.rightPaddleY + 'px';
+                this.ball.style.left = this.ballX + 'px';
+                this.ball.style.top = this.ballY + 'px';
+                this.leftScoreEl.textContent = this.leftScore;
+                this.rightScoreEl.textContent = this.rightScore;
+            }
+
+            reset() {
+                this.leftScore = 0;
+                this.rightScore = 0;
+                this.gameRunning = true;
+                this.leftPaddleY = (this.gameHeight - this.paddleHeight) / 2;
+                this.rightPaddleY = (this.gameHeight - this.paddleHeight) / 2;
+                this.resetBall();
+                this.gameOverEl.style.display = 'none';
+            }
+
+            gameLoop() {
+                if (this.gameRunning) {
+                    this.updatePaddles();
+                    this.updateBall();
+                }
+                this.updatePositions();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        new TennisGame();
+    </script>
+</body>
+</html>
